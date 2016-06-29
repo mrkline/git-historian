@@ -1,0 +1,7 @@
+[package]
+name = "git-historian"
+version = "0.1.0"
+authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
+
+[dependencies]
+git2 = "0.4.3"
