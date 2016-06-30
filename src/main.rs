@@ -6,7 +6,7 @@ use std::env;
 
 mod history;
 
-use history::{HistoryTree, start_history, append_diff};
+use history::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -23,13 +23,30 @@ fn main() {
 
     for id in walk {
         let id = id.unwrap();
-        let mut commit = repo.find_commit(id).unwrap();
+        let commit = repo.find_commit(id).unwrap();
         if let Some(diff) = diff_commit(&commit, &repo) {
-            match history {
-                None => (),
-                Some(ref mut tree) => append_diff(&mut *tree, diff, commit.time()),
+            if history.is_none() {
+                let mut head_index = Index::new().unwrap();
+                head_index.read_tree(&commit.tree().unwrap()).unwrap();
+
+                history = Some(start_history(&head_index, commit.time()));
             };
+
+            append_diff(&mut history.as_mut().unwrap(), diff, commit.time());
         }
+    }
+
+    for (key, val) in &history.unwrap() {
+        println!("{}:", key);
+        print_history(val);
+    }
+}
+
+fn print_history(node: &Link<HistoryNode>) {
+    let nb = node.borrow();
+    println!("\t{}", nb.when.seconds());
+    if let Some(ref prev) = nb.previous {
+        print_history(prev)
     }
 }
 
