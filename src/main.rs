@@ -14,7 +14,7 @@ fn main() {
     let repo = Repository::open(&args[1]).expect("Couldn't open repo");
 
     // We'll need some history
-    let mut history : Option<HistoryTree> = None;
+    let mut history = HistoryTree::new();
 
     // Start walking.
     let mut walk = repo.revwalk().unwrap();
@@ -25,18 +25,11 @@ fn main() {
         let id = id.unwrap();
         let commit = repo.find_commit(id).unwrap();
         if let Some(diff) = diff_commit(&commit, &repo) {
-            if history.is_none() {
-                let mut head_index = Index::new().unwrap();
-                head_index.read_tree(&commit.tree().unwrap()).unwrap();
-
-                history = Some(start_history(&head_index, commit.time()));
-            };
-
-            append_diff(&mut history.as_mut().unwrap(), diff, commit.time());
+            append_diff(&mut history, diff, commit.time());
         }
     }
 
-    for (key, val) in &history.unwrap() {
+    for (key, val) in &history {
         println!("{}:", key);
         print_history(val);
     }

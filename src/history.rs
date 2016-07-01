@@ -20,6 +20,8 @@ pub struct HistoryNode {
 
 pub type HistoryTree = HashMap<String, Link<HistoryNode>>;
 
+type PathSet = HashSet<String>;
+
 pub fn start_history(head_index: &Index, head_time: Time) -> HistoryTree {
     let mut ret = HistoryTree::new();
 
@@ -32,35 +34,41 @@ pub fn start_history(head_index: &Index, head_time: Time) -> HistoryTree {
     ret
 }
 
-pub fn append_diff(history: &mut HistoryTree, diff: Diff, commit_time: Time) {
+fn append_diff(history: &mut HistoryTree, current_paths: &mut PathSet,
+               diff: Diff, commit_time: Time) {
     for delta in diff.deltas() {
-        let new_name = delta.new_file().path().unwrap().to_str().unwrap();
-
-        // If we're not tracking this file, we don't care. Move along.
-        if !history.contains_key(new_name) {
-            continue;
-        }
-
-        let node = Rc::new(RefCell::new(
-            HistoryNode{ change: delta.status(), when: commit_time, previous: None }));
-
-        let last = walk_to_end(history.get(new_name).unwrap().clone());
-        last.borrow_mut().previous = Some(node.clone());
+        // TODO: Filter out files we don't care about
 
         match delta.status() {
-            Delta::Copied | Delta::Renamed => {
+            Delta::Deleted |
+            Delta::Copied |
+            Delta::Renamed => {
                 let old_name = delta.old_file().path().unwrap().to_str().unwrap();
                 history.insert(old_name.to_string(), node);
             }
             _ => ()
         }
+
+        let new_name = delta.new_file().path().unwrap().to_str().unwrap();
+
+        let node = Rc::new(RefCell::new(
+            HistoryNode{ change: delta.status(), when: commit_time, previous: None }));
+
+        // If we're not tracking this file, start!
+        if !history.contains_key(new_name) {
+            history.insert(new_name.to_string(), node);
+            return;
+        }
+
+        let last = walk_to_end(&history.get(new_name).unwrap());
+
     }
 }
 
-fn walk_to_end(node: Link<HistoryNode>) -> Link<HistoryNode> {
+fn walk_to_end(node: &Link<HistoryNode>) -> Link<HistoryNode> {
     let nb = node.borrow();
     match nb.previous {
-        Some(ref prev) => walk_to_end(prev.clone()),
+        Some(ref prev) => walk_to_end(prev),
         None => node.clone()
     }
 }
