@@ -16,7 +16,7 @@ fn main() {
     // And a set of files we want to track
     let paths = path_set_from_reference("HEAD", &repo);
 
-    let history = gather_history(paths, &repo);
+    let history = gather_history(paths, &get_oid, &repo);
 
     for (key, val) in &history {
         println!("{}:", key);
@@ -24,9 +24,14 @@ fn main() {
     }
 }
 
-fn print_history(node: &Link<HistoryNode>) {
+fn get_oid(_: &Diff, c: &Commit) -> Oid {
+    c.id()
+}
+
+fn print_history<T>(node: &Link<HistoryNode<T>>)
+    where T: std::fmt::Debug {
     let nb = node.borrow();
-    println!("\t{}", nb.when.seconds());
+    println!("\t{:?}", nb.data);
     if let Some(ref prev) = nb.previous {
         print_history(prev)
     }
