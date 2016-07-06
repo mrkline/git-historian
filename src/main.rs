@@ -16,7 +16,7 @@ fn main() {
     // And a set of files we want to track
     let paths = path_set_from_reference("HEAD", &repo);
 
-    let history = gather_history(paths.clone(), &get_oid, &repo);
+    let history = gather_history(&paths, &get_oid, &repo);
 
     for (key, val) in history.iter()
         .filter(|&(k, _)| paths.contains(k)) {

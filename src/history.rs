@@ -8,7 +8,6 @@ use std; // Debug, for std::fmt::Debug
 
 use git2::*;
 
-
 /// Expresses an edge between HistoryNodes in a HistoryTree
 pub type Link<T> = Rc<RefCell<T>>;
 
@@ -25,27 +24,6 @@ pub struct HistoryNode<T> {
 pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
 
 pub type PathSet = HashSet<String>;
-
-fn tail_of<T>(head: &Link<HistoryNode<T>>) -> Link<HistoryNode<T>> {
-    match head.borrow().previous {
-        Some(ref prev) => tail_of(prev),
-        None => head.clone()
-    }
-}
-
-fn tail_if_unterminated<T>(head: &Link<HistoryNode<T>>) -> Option<Link<HistoryNode<T>>> {
-    let hb = head.borrow();
-
-    match hb.change_type {
-        Delta::Added => return None,
-        _ => ()
-    };
-
-    match hb.previous {
-        Some(ref prev) => tail_if_unterminated(prev),
-        None => Some(head.clone())
-    }
-}
 
 pub fn path_set_from_index(i: &Index) -> PathSet {
     let mut ret = PathSet::new();
@@ -69,23 +47,21 @@ pub fn path_set_from_reference(name: &str, repo: &Repository) -> PathSet {
 
 // All the fun state we need to hang onto while building up our history tree.
 struct HistoryState<T, F: Fn(&Diff, &Commit) -> T> {
-    tree: HistoryTree<T>,
+    history: HistoryTree<T>,
 
-    // Renames aren't changes per se (at least of the file contents),
-    // so when we see file A renamed to B, we'll just add it to this list.
-    // Then, next time we see a change in A, we'll link the back of B to A.
-    pending_renames: HashMap<String, Vec<String>>,
-
-    current_paths: PathSet,
+    pending_edges: HashMap<String, Vec<Link<HistoryNode<T>>>>,
 
     visitor: F
 }
 
 impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
-    fn new(set: PathSet, vis: F) -> HistoryState<T, F> {
-        HistoryState{ tree: HistoryTree::new(),
-                      pending_renames: HashMap::new(),
-                      current_paths: set,
+    fn new(set: &PathSet, vis: F) -> HistoryState<T, F> {
+        let mut pending = HashMap::new();
+        for path in set {
+            pending.insert(path.clone(), Vec::new());
+        }
+        HistoryState{ history: HistoryTree::new(),
+                      pending_edges: pending,
                       visitor: vis,
                     }
     }
@@ -99,23 +75,24 @@ impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
     fn append_diff(&mut self, diff: Diff, commit: &Commit) {
         for delta in diff.deltas() {
 
-            let new_path = new_file_path(&delta);
-            if !self.current_paths.contains(new_path) {
+            let new_path = new_file_path(&delta).to_string();
+            if !self.pending_edges.contains_key(&new_path) {
                 println!("Ignoring that {} was {:?} (not in set)", new_path, delta.status());
                 continue;
             }
 
             // In all cases where we care about the given path,
             // add a node to its branch.
-            let n = self.new_node(delta.status(), &diff, commit);
-            self.append_node(n, new_path);
+            let new_node = self.new_node(delta.status(), &diff, commit);
+            self.append_node(&new_path, new_node.clone());
 
             match delta.status() {
                 // If a file was modified, all we need to do is add a node
                 // (done above) and link any copies to said node.
                 Delta::Modified => {
                     println!("{} was modified.", new_path);
-                    self.link_copies(new_path);
+                    self.pending_edges.entry(new_path).or_insert(Vec::new())
+                        .push(new_node);
                 }
 
                 // If a file was added, we need to add a node (done above),
@@ -123,30 +100,18 @@ impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
                 // the set (since previous changes are uninteresting to us).
                 Delta::Added => {
                     println!("{} was added.", new_path);
-                    self.link_copies(new_path);
-                    self.current_paths.remove(new_path);
                 }
 
                 // If a file was copied, along with adding a node (done above),
                 // we need to leave a note to ourselves to link this path to
                 // its progenitor. We do this using "pending_renames",
-                // which is used by link_copies (see its implementation).
+                // which is used by build_edges (see its implementation).
                 Delta::Renamed |
                 Delta::Copied => {
                     let old_path = old_file_path(&delta).to_string();
                     println!("{} was renamed/copied to {}.", old_path, new_path);
-
-                    // Link standing renames/copies to the node we created above.
-                    self.link_copies(new_path);
-
-                    // Now create a new rename
-                    self.pending_renames.entry(old_path.clone()).or_insert(Vec::new())
-                        .push(new_path.to_string());
-
-                    // We no longer care about this path,
-                    // but do care about the old.
-                    self.current_paths.insert(old_path);
-                    self.current_paths.remove(new_path);
+                    self.pending_edges.entry(old_path).or_insert(Vec::new())
+                        .push(new_node);
                 }
 
                 _ => ()
@@ -154,35 +119,25 @@ impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
         }
     }
 
-    fn append_node(&mut self, node: Link<HistoryNode<T>>, key: &str) {
-        println!("Appending to {}.", key);
-        if self.tree.contains_key(key) {
-            // If we already have an entry for the given path,
-            // append the new node to the tail.
-            let tail = tail_of(&self.tree.get(key).unwrap());
-            assert!(tail.borrow().previous.is_none());
-            tail.borrow_mut().previous = Some(node);
-        }
-        else {
-            // Otherwise we'll just create a new entry.
-            self.tree.insert(key.to_string(), node);
+    fn append_node(&mut self, key: &str, node: Link<HistoryNode<T>>) {
+        println!("Adding node for {}.", key);
+        self.build_edges(key, &node);
+
+        // If we don't have a node for this path yet, it's the top of the branch.
+        if !self.history.contains_key(key) {
+            self.history.insert(key.to_string(), node);
         }
     }
 
-    /// If file A is renamed or copied to B, we must link B's history to that of A.
-    /// We can't do so until we find another entry for A, so we add a "reminder"
-    /// in pending_renames, then do it here next time we see a change to `A`.
-    fn link_copies(&mut self, key: &str) {
-        let to_link = match self.pending_renames.remove(key) {
+    fn build_edges(&mut self, for_path: &str, link_to: &Link<HistoryNode<T>>) {
+        let from_set = match self.pending_edges.remove(for_path) {
                 None => return, // Bail if there are no changes to link.
-                Some(renames) => renames
+                Some(to_link) => to_link
             };
 
-        let tail = tail_of(self.tree.get(key).unwrap());
-
-        for l in to_link { // For each rename/copy of <key> to <l>,
-            println!("Linking {} to {}", l, key);
-            self.append_node(tail.clone(), &l);
+        for l in from_set { // For each rename/copy of <key> to <l>,
+            assert!(l.borrow().previous.is_none());
+            l.borrow_mut().previous = Some(link_to.clone());
         }
     }
 }
@@ -196,7 +151,7 @@ fn print_history<T>(node: &Link<HistoryNode<T>>)
     }
 }
 
-pub fn gather_history<T, F>(paths: PathSet, v: F, repo: &Repository) -> HistoryTree<T>
+pub fn gather_history<T, F>(paths: &PathSet, v: F, repo: &Repository) -> HistoryTree<T>
     where F: Fn(&Diff, &Commit) -> T,
           T: std::fmt::Debug /* Debug */ {
     let mut state = HistoryState::new(paths, v);
@@ -212,9 +167,8 @@ pub fn gather_history<T, F>(paths: PathSet, v: F, repo: &Repository) -> HistoryT
 
         // Debug
         println!("Visiting {:?}", id);
-        println!("\tCurrent set: {:?}", state.current_paths);
         println!("\tCurrent map:\r");
-        for (key, val) in state.tree.iter() {
+        for (key, val) in state.history.iter() {
             print!("\t{}:\r", key);
             print_history(&val);
         }
@@ -225,7 +179,7 @@ pub fn gather_history<T, F>(paths: PathSet, v: F, repo: &Repository) -> HistoryT
         print!("\n");
     }
 
-    state.tree
+    state.history
 }
 
 fn new_file_path<'a>(df : &'a DiffDelta) -> &'a str {
