@@ -179,6 +179,9 @@ pub fn gather_history<T, F>(paths: &PathSet, v: F, repo: &Repository) -> History
         print!("\n");
     }
 
+    // We should have consumed all edges by now.
+    assert!(state.pending_edges.is_empty());
+
     state.history
 }
 
