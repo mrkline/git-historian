@@ -46,22 +46,25 @@ pub fn path_set_from_reference(name: &str, repo: &Repository) -> PathSet {
 }
 
 // All the fun state we need to hang onto while building up our history tree.
-struct HistoryState<T, F: Fn(&Diff, &Commit) -> T> {
+struct HistoryState<'a, T, F: Fn(&Diff, &Commit) -> T> {
     history: HistoryTree<T>,
 
     pending_edges: HashMap<String, Vec<Link<HistoryNode<T>>>>,
 
-    visitor: F
+    path_set: &'a PathSet,
+
+    visitor: F,
 }
 
-impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
-    fn new(set: &PathSet, vis: F) -> HistoryState<T, F> {
+impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&Diff, &Commit) -> T {
+    fn new(set: &'a PathSet, vis: F) -> HistoryState<T, F> {
         let mut pending = HashMap::new();
         for path in set {
             pending.insert(path.clone(), Vec::new());
         }
         HistoryState{ history: HistoryTree::new(),
                       pending_edges: pending,
+                      path_set: set,
                       visitor: vis,
                     }
     }
@@ -124,7 +127,7 @@ impl<T, F> HistoryState<T, F> where F: Fn(&Diff, &Commit) -> T {
         self.build_edges(key, &node);
 
         // If we don't have a node for this path yet, it's the top of the branch.
-        if !self.history.contains_key(key) {
+        if !self.history.contains_key(key) && self.path_set.contains(key) {
             self.history.insert(key.to_string(), node);
         }
     }

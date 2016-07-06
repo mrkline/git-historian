@@ -18,8 +18,7 @@ fn main() {
 
     let history = gather_history(&paths, &get_oid, &repo);
 
-    for (key, val) in history.iter()
-        .filter(|&(k, _)| paths.contains(k)) {
+    for (key, val) in history {
         println!("{}:", key);
         print_history(&val);
     }
