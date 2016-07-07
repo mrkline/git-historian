@@ -168,7 +168,7 @@ pub fn gather_history<T, F>(paths: &PathSet, v: F, repo: &Repository) -> History
 
     // Start walking.
     let mut walk = repo.revwalk().unwrap();
-    walk.set_sorting(SORT_TIME | SORT_TOPOLOGICAL);
+    walk.set_sorting(SORT_TIME);
     walk.push_head().unwrap();
 
     for id in walk {
