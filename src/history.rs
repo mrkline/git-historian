@@ -6,6 +6,9 @@ use std::rc::Rc;
 
 use git2::*;
 
+use std;
+use std::io::Write;
+
 /// Expresses an edge between HistoryNodes in a HistoryTree
 pub type Link<T> = Rc<RefCell<T>>;
 
@@ -14,6 +17,8 @@ pub struct HistoryNode<T> {
     /// A callback is issued for each delta, allowing the user to store
     /// whatever info they want about the change.
     pub data: T,
+
+    id: Oid,
 
     /// What's the previous change?
     pub previous: Option<Link<HistoryNode<T>>>,
@@ -90,6 +95,7 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&Diff, &Commit) -> T {
     /// Uses the user's callback to generate a new node
     fn new_node(&self, d: &Diff, c: &Commit) -> Link<HistoryNode<T>> {
         Rc::new(RefCell::new(HistoryNode{data: (self.visitor)(d, c),
+                                         id: c.id(),
                                          previous: None}))
     }
 
@@ -144,6 +150,7 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&Diff, &Commit) -> T {
 
         // If we don't have a node for this path yet, it's the top of the branch.
         if !self.history.contains_key(key) && self.path_set.contains(key) {
+            // println!("First mention of {} at {:?}", key, node.borrow().id);
             self.history.insert(key.to_string(), node);
         }
     }
@@ -173,6 +180,7 @@ pub fn gather_history<T, F>(paths: &PathSet, v: F, repo: &Repository) -> History
 
     for id in walk {
         let id = id.unwrap();
+        writeln!(&mut std::io::stderr(), "Visitng {}", id);
         let commit = repo.find_commit(id).unwrap();
 
         if let Some(diff) = diff_commit(&commit, &repo) {
