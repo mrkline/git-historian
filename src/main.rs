@@ -1,26 +1,24 @@
 extern crate git2;
-
-use git2::*;
+extern crate time;
 
 use std::env;
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
+mod git;
 mod history;
 
+use git2::*;
 use history::*;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    // let args: Vec<String> = env::args().collect();
+    let (tx, rx) = sync_channel(0);
 
-    let repo = Repository::open(&args[1]).expect("Couldn't open repo");
+    thread::spawn(|| git::get_history(tx));
 
-    // And a set of files we want to track
-    let paths = path_set_from_reference("HEAD", &repo);
-
-    let history = gather_history(&paths, &get_oid, &repo);
-
-    for (key, val) in history {
-        println!("{}:", key);
-        print_history(&val);
+    while let Ok(commit) = rx.recv() {
+        println!("{:?}", commit);
     }
 }
 
