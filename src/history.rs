@@ -1,3 +1,33 @@
+//! Builds a tree of Git history for a given set of paths, issuing a callback
+//! to gather information at each point in a file's history
+//!
+//! The basic algorithm is as follows: given a set of paths we care about and a
+//! series of commits, do the following for each file change in each commit:
+//!
+//! 1. Call the user-provided callback to get desired information about this
+//!    change. The callback can use the data provided by ParsedCommit, or it
+//!    can gather its own info using the commit's SHA1 ID and git commands.
+//!    (The latter is, of course, much slower.)
+//!
+//! 2. Create a new node representing our change, then connect it to previous
+//!    nodes using the "pending edges" map (see step 3).
+//!
+//! 3. In a map of "pending edges", place an entry indicating what the file's
+//!    name was before this change. If the change was a modification,
+//!    the previous name is the same as the current one.
+//!    If the change was a move or a copy, the previous name will be different.
+//!    If the change was the addition of the file, there is no previous name
+//!    to add.
+//!
+//! The net effect is that files' histories are tracked *through* name changes,
+//! a la `git log --follow`.
+//! Currently the act of renaming a file is considered a change, even though
+//! the actual contents haven't changed at all.
+//! (This seems to be consistent with `git log --follow`).
+//! If, in the future, this is not desired, we *do* track the amount a file has
+//! been changed during a rename, and could skip adding a node if no changes are
+//! made to the contents.
+
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufReader, BufRead};
@@ -28,6 +58,10 @@ pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
 /// A set of paths, used to track which files we care about
 pub type PathSet = HashSet<String>;
 
+/// Returns a PathSet containing all files tracked in the current Git repo
+///
+/// *Warning:* This currently assumes the working directory is the top-level Git
+/// directory. This should (and will) be fixed ASAP.
 pub fn get_tracked_files() -> PathSet {
     let mut ret = PathSet::new();
 
@@ -46,7 +80,7 @@ pub fn get_tracked_files() -> PathSet {
     ret
 }
 
-/// All the fun state we need to hang onto while building up our history tree.
+/// All the fun state we need to hang onto while building up our history tree
 struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {
     /// The tree we'll return
     history: HistoryTree<T>,
@@ -90,6 +124,7 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
                                          previous: None}))
     }
 
+    /// Takes a given commit and appends its changes to the history tree
     fn append_commit(&mut self, commit: &ParsedCommit) {
         for delta in &commit.deltas {
 
@@ -129,6 +164,8 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
         }
     }
 
+    /// Uses `pending_edges` (via `build_edges()`) to link `node` into
+    /// the history tree.
     fn append_node(&mut self, key: &str, node: Link<HistoryNode<T>>) {
         self.build_edges(key, &node);
 
@@ -138,6 +175,7 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
         }
     }
 
+    /// Connects older nodes to `link_to` based on `pending_edges`
     fn build_edges(&mut self, for_path: &str, link_to: &Link<HistoryNode<T>>) {
         let from_set = match self.pending_edges.remove(for_path) {
                 None => return, // Bail if there are no changes to link.

@@ -1,5 +1,10 @@
 extern crate time;
 
+// A demo app that gets the --oneline of every commit for a given file.
+// Since this does so once per diff per commit, it is hilariously inefficient,
+// but very easy to validate by comparing a given file's history to
+// `git log --follow --oneline <file>`.
+
 // use std::env;
 use std::process::{Command, Stdio};
 use std::str;

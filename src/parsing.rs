@@ -1,3 +1,10 @@
+//! Parses `git log --name-status` to find file changes through Git history
+//!
+//! Originally the [Rust bindings](https://crates.io/crates/git2) for
+//! [libgit2](https://libgit2.github.com/) was used,
+//! but there is currently no clean way for libgit to generate diffs for merges
+//! (i.e. only the changes resulting from conflict resolution) as Git does.
+
 use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{self, BufReader, BufRead};
 use std::process::{Child, Command, Stdio};
@@ -69,6 +76,7 @@ impl Display for SHA1 {
     }
 }
 
+// TODO: According to docs, Display should already implement Debug. What gives?
 impl Debug for SHA1 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         Display::fmt(self, f)
@@ -84,12 +92,13 @@ impl Default for SHA1 {
 #[derive(Debug)]
 pub struct ParsedCommit {
     pub id: SHA1,
+    /// The Unix timestamp (in seconds) of the commit
     pub when: Timespec,
     pub deltas: Vec<FileDelta>,
 }
 
-impl ParsedCommit {
-    pub fn new() -> ParsedCommit
+impl Default for ParsedCommit {
+    fn default() -> ParsedCommit
     {
         ParsedCommit {
             id: SHA1::default(),
@@ -113,6 +122,10 @@ fn start_history_process() -> Result<Child, io::Error> {
     Ok(child)
 }
 
+/// Parses the Git history and emits a series of ParsedCommits
+///
+/// The parsed commits are pushed to a SyncSender,
+/// and are assumed to be consumed by another thread.
 pub fn get_history(sink: SyncSender<ParsedCommit>) {
 
     enum ParseState { // Used for the state machine below
@@ -125,7 +138,7 @@ pub fn get_history(sink: SyncSender<ParsedCommit>) {
     let br = BufReader::new(child.stdout.unwrap());
 
     let mut state = ParseState::Hash;
-    let mut current_commit = ParsedCommit::new();
+    let mut current_commit = ParsedCommit::default();
 
     for line in br.lines().map(|l| l.unwrap()) {
 
@@ -148,7 +161,7 @@ pub fn get_history(sink: SyncSender<ParsedCommit>) {
                 // If we get the next hash, we're done with the previous commit.
                 if let Ok(id) = SHA1::parse(&line) {
                     commit_sink(current_commit, &sink);
-                    current_commit = ParsedCommit::new();
+                    current_commit = ParsedCommit::default();
 
                     // We just got the OID of the next guy,
                     // so proceed to reading the timestamp
@@ -171,6 +184,7 @@ pub fn get_history(sink: SyncSender<ParsedCommit>) {
 }
 
 /// The function that eats a commit when the state machine is done parsing it.
+#[inline]
 fn commit_sink(c: ParsedCommit, sink: &SyncSender<ParsedCommit>) {
     sink.send(c).expect("The other end stopped listening for commits.");
 }
