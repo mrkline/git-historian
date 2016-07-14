@@ -12,5 +12,4 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-git2 = "0.4.3"
 time = "0.1"
