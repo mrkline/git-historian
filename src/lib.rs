@@ -1,3 +1,3 @@
 extern crate time;
 
-pub mod git;
+pub mod parsing;

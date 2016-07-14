@@ -5,7 +5,7 @@ use std::env;
 use std::sync::mpsc::sync_channel;
 use std::thread;
 
-mod git;
+mod parsing;
 mod history;
 
 use git2::*;
@@ -15,7 +15,7 @@ fn main() {
     // let args: Vec<String> = env::args().collect();
     let (tx, rx) = sync_channel(0);
 
-    thread::spawn(|| git::get_history(tx));
+    thread::spawn(|| parsing::get_history(tx));
 
     while let Ok(commit) = rx.recv() {
         println!("{:?}", commit);
