@@ -14,9 +14,11 @@ use std::thread;
 
 mod parsing;
 mod history;
+mod types;
 
 use history::*;
 use parsing::*;
+use types::*;
 
 fn main() {
     // let args: Vec<String> = env::args().collect();

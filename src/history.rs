@@ -29,11 +29,12 @@
 //! made to the contents.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::rc::Rc;
 
-use parsing::{Change, ParsedCommit};
+use types::{Change, PathSet};
+use parsing::ParsedCommit;
 
 /// Expresses an edge between HistoryNodes in a HistoryTree
 pub type Link<T> = Rc<RefCell<T>>;
@@ -52,9 +53,6 @@ pub struct HistoryNode<T> {
 /// (i.e. a linked list) of all changes.
 /// This extends past name changes
 pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
-
-/// A set of paths, used to track which files we care about
-pub type PathSet = HashSet<String>;
 
 /// All the fun state we need to hang onto while building up our history tree
 struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {
