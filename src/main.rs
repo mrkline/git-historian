@@ -6,7 +6,6 @@ extern crate time;
 // `git log --follow --oneline <file>`.
 
 // use std::env;
-use std::process::{Command, Stdio};
 use std::str;
 use std::sync::mpsc::sync_channel;
 use std::thread;
@@ -25,7 +24,7 @@ fn main() {
 
     let paths = get_tracked_files();
 
-    let history = gather_history(&paths, &get_id, rx);
+    let history = gather_history(&paths, &get_year, rx);
 
     for (key, val) in history {
         println!("{}", key);
@@ -33,16 +32,8 @@ fn main() {
     }
 }
 
-fn get_id(c: &ParsedCommit) -> String {
-
-    str::from_utf8(&Command::new("git")
-        .arg("log")
-        .arg("--oneline")
-        .arg("--no-walk")
-        .arg(c.id.to_string())
-        .stdout(Stdio::piped())
-        .output().unwrap()
-        .stdout).unwrap().trim().to_string()
+fn get_year(c: &ParsedCommit) -> u16 {
+    (time::at(c.when).tm_year + 1900) as u16
 }
 
 fn print_history<T>(node: &Link<HistoryNode<T>>)
