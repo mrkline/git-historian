@@ -6,6 +6,7 @@ extern crate time;
 // `git log --follow --oneline <file>`.
 
 // use std::env;
+use std::io::{BufReader, BufRead};
 use std::process::{Command, Stdio};
 use std::str;
 use std::sync::mpsc::sync_channel;
@@ -32,6 +33,28 @@ fn main() {
         print_history(&val);
     }
 }
+
+/// *Warning:* This currently assumes the working directory is the top-level Git
+/// directory. This should (and will) be fixed ASAP.
+fn get_tracked_files() -> PathSet {
+    let mut ret = PathSet::new();
+
+    // TODO: Make sure we're in the top level dir (change to it?)
+    let child = Command::new("git")
+        .arg("ls-files")
+        .stdout(Stdio::piped())
+        .spawn().unwrap();
+
+    let br = BufReader::new(child.stdout.unwrap());
+
+    for file in br.lines().map(|l| l.unwrap()) {
+        ret.insert(file);
+    }
+
+    ret
+}
+
+
 
 fn get_id(c: &ParsedCommit) -> String {
 

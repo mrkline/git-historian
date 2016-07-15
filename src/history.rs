@@ -30,8 +30,6 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::io::{BufReader, BufRead};
-use std::process::{Command, Stdio};
 use std::sync::mpsc::Receiver;
 use std::rc::Rc;
 
@@ -57,28 +55,6 @@ pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
 
 /// A set of paths, used to track which files we care about
 pub type PathSet = HashSet<String>;
-
-/// Returns a PathSet containing all files tracked in the current Git repo
-///
-/// *Warning:* This currently assumes the working directory is the top-level Git
-/// directory. This should (and will) be fixed ASAP.
-pub fn get_tracked_files() -> PathSet {
-    let mut ret = PathSet::new();
-
-    // TODO: Make sure we're in the top level dir (change to it?)
-    let child = Command::new("git")
-        .arg("ls-files")
-        .stdout(Stdio::piped())
-        .spawn().unwrap();
-
-    let br = BufReader::new(child.stdout.unwrap());
-
-    for file in br.lines().map(|l| l.unwrap()) {
-        ret.insert(file);
-    }
-
-    ret
-}
 
 /// All the fun state we need to hang onto while building up our history tree
 struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {
