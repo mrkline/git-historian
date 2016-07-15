@@ -165,7 +165,11 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
     }
 }
 
-/// The whole shebang. Build up the needed state and walk the Git tree.
+/// Traverses Git history, grabbing arbitrary data at each change for files
+/// in the given set
+///
+/// Changes are tracked *through* file copies and renames.
+/// See the module-level documentation for more info.
 pub fn gather_history<T, F>(paths: &PathSet, v: F,
                             commit_source: Receiver<ParsedCommit>) -> HistoryTree<T>
     where F: Fn(&ParsedCommit) -> T {
