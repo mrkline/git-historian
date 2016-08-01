@@ -1,4 +1,4 @@
-Copyright (C) 2014 Matt Kline, Fluke Networks
+Copyright (C) 2016 Matt Kline, Fluke Networks
 
 This project is licensed under
 [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html#SEC1) for the
