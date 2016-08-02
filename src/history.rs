@@ -33,26 +33,9 @@ use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::rc::Rc;
 
-use types::{Change, PathSet};
+use types::{Change, HistoryNode, HistoryTree, Link, PathSet};
 use parsing::ParsedCommit;
 
-/// Expresses an edge between HistoryNodes in a HistoryTree
-pub type Link<T> = Rc<RefCell<T>>;
-
-/// A change in a file through Git history
-pub struct HistoryNode<T> {
-    /// A callback is issued for each delta, allowing the user to store
-    /// whatever info they want about the change.
-    pub data: T,
-
-    /// What's the previous change?
-    pub previous: Option<Link<HistoryNode<T>>>,
-}
-
-/// For each key in the map, the value is a branch of a tree
-/// (i.e. a linked list) of all changes.
-/// This extends past name changes
-pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
 
 /// All the fun state we need to hang onto while building up our history tree
 struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {

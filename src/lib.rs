@@ -3,6 +3,6 @@ extern crate time;
 pub mod parsing;
 pub mod history;
 
-pub use self::types::{Change, FileDelta, SHA1, PathSet};
+pub use self::types::*;
 
 mod types;

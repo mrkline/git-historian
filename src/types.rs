@@ -1,7 +1,9 @@
 ///! Types common to the entire library.
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
+use std::rc::Rc;
 
 /// A set of paths, used to track which files we care about
 pub type PathSet = HashSet<String>;
@@ -73,3 +75,21 @@ impl Display for SHA1 {
 impl Default for SHA1 {
     fn default() -> SHA1 { SHA1{bytes: [0; 20]} }
 }
+
+/// Expresses an edge between HistoryNodes in a HistoryTree
+pub type Link<T> = Rc<RefCell<T>>;
+
+/// A change in a file through Git history
+pub struct HistoryNode<T> {
+    /// A callback is issued for each delta, allowing the user to store
+    /// whatever info they want about the change.
+    pub data: T,
+
+    /// What's the previous change?
+    pub previous: Option<Link<HistoryNode<T>>>,
+}
+
+/// For each key in the map, the value is a branch of a tree
+/// (i.e. a linked list) of all changes.
+/// This extends past name changes
+pub type HistoryTree<T> = HashMap<String, Link<HistoryNode<T>>>;
