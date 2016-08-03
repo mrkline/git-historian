@@ -76,7 +76,7 @@ impl Default for SHA1 {
     fn default() -> SHA1 { SHA1{bytes: [0; 20]} }
 }
 
-/// Expresses an edge between HistoryNodes in a HistoryTree
+/// Expresses an edge between `HistoryNodes` in a `HistoryTree`
 pub type Link<T> = Rc<RefCell<T>>;
 
 /// A change in a file through Git history

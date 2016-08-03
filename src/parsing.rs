@@ -47,9 +47,9 @@ fn start_history_process() -> Result<Child, io::Error> {
     Ok(child)
 }
 
-/// Parses the Git history and emits a series of ParsedCommits
+/// Parses the Git history and emits a series of `ParsedCommits`
 ///
-/// The parsed commits are pushed to a SyncSender,
+/// The parsed commits are pushed to a `SyncSender`,
 /// and are assumed to be consumed by another thread.
 pub fn get_history<F>(sink: SyncSender<ParsedCommit>, filter: F)
     where F: Fn(&ParsedCommit) -> bool {
@@ -152,7 +152,7 @@ fn parse_change_code(c: &str) -> Change {
     let ret = match c.chars().nth(0).unwrap() {
         'A' => Change::Added,
         'D' => Change::Deleted,
-        'M' => Change::Modified,
+        'M' |
         'T' => Change::Modified, // Let's consider a type change a modification.
         // Renames and copies are suffixed with a percent changed, e.g. R87
         'R' => Change::Renamed{ percent_changed: c[1..].parse().unwrap() },

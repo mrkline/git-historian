@@ -5,7 +5,7 @@
 //! series of commits, do the following for each file change in each commit:
 //!
 //! 1. Call the user-provided callback to get desired information about this
-//!    change. The callback can use the data provided by ParsedCommit, or it
+//!    change. The callback can use the data provided by `ParsedCommit`, or it
 //!    can gather its own info using the commit's SHA1 ID and git commands.
 //!    (The latter is, of course, much slower.)
 //!
@@ -93,28 +93,29 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
 
             // In all cases where we care about the given path,
             // create a new node for it and link its pending_edges to it.
-            let new_node = self.new_node(&commit);
+            let new_node = self.new_node(commit);
             self.append_node(&delta.path, new_node.clone());
 
             match delta.change {
                 // If a file was modified, its next node is under the same path.
                 Change::Modified => {
-                    self.pending_edges.entry(delta.path.clone()).or_insert(Vec::new())
+                    self.pending_edges.entry(delta.path.clone())
+                        .or_insert_with(Vec::new)
                         .push(new_node);
                 }
 
                 // If a file was added, it has no next node (that we care about).
-                Change::Added => { }
-
-                // We don't care about deletions. If a file is deleted,
+                // We also don't care about deletions. If a file is deleted,
                 // it didn't make it - at least in that form - to the present.
+                Change::Added |
                 Change::Deleted => { }
 
                 // If a file was moved or copied,
                 // its next node is under the old path.
                 Change::Copied{..} | // TODO: Use % changed
                 Change::Renamed{..} => {
-                    self.pending_edges.entry(delta.from.clone()).or_insert(Vec::new())
+                    self.pending_edges.entry(delta.from.clone())
+                        .or_insert_with(Vec::new)
                         .push(new_node);
                 }
             }
