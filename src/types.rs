@@ -87,7 +87,7 @@ pub struct HistoryNode<T> {
     /// entirely (or the processing that generated it), as we could screw up
     /// the history graph. Instead, we make the contents `None` for all nodes
     /// from a filtered-out commit.
-    pub data: Option<T>,
+    pub data: Option<Rc<T>>,
 
     /// What's the previous change?
     pub previous: Option<Link<HistoryNode<T>>>,

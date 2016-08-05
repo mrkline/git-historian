@@ -2,22 +2,27 @@
 //! to gather information at each point in a file's history
 //!
 //! The basic algorithm is as follows: given a set of paths we care about and a
-//! series of commits, do the following for each file change in each commit:
+//! series of commits, do the following for each commit:
 //!
-//! 1. Call the user-provided callback to get desired information about this
-//!    change. The callback can use the data provided by `ParsedCommit`, or it
+//! 1. Call the user-provided filter to see if the user cares about this commit.
+//!    If they do, call the user-provided callback extract desired information.
+//!    The callback can use the data provided by `ParsedCommit`, or it
 //!    can gather its own info using the commit's SHA1 ID and git commands.
 //!    (The latter is, of course, much slower.)
 //!
-//! 2. Create a new node representing our change, then connect it to previous
-//!    nodes using the "pending edges" map (see step 3).
+//! 2. Then, for each added/removed/changed/etc. file in the commit,
 //!
-//! 3. In a map of "pending edges", place an entry indicating what the file's
-//!    name was before this change. If the change was a modification,
-//!    the previous name is the same as the current one.
-//!    If the change was a move or a copy, the previous name will be different.
-//!    If the change was the addition of the file, there is no previous name
-//!    to add.
+//!    - Create a new node representing the delta.
+//!
+//!    - Connect it to previous nodes using the "pending edges" map
+//!      (see the next step).
+//!
+//!    - In a map of "pending edges", place an entry indicating what the file's
+//!      name was before this change. If the change was a modification,
+//!      the previous name is the same as the current one.
+//!      If the change was a move or a copy, the previous name will be different.
+//!      If the change was the addition of the file, there is no previous name
+//!      to add.
 //!
 //! The net effect is that files' histories are tracked *through* name changes,
 //! a la `git log --follow`.
@@ -80,17 +85,26 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
                     }
     }
 
-    /// Uses the user's callback to generate a new node
-    fn new_node(&self, c: &ParsedCommit) -> Link<HistoryNode<T>> {
-        let d = if (self.filter)(c) { Some((self.visitor)(c)) }
-            else { None };
-
+    fn new_node(&self, d: Option<Rc<T>>) -> Link<HistoryNode<T>> {
         Rc::new(RefCell::new(HistoryNode{data: d, previous: None}))
     }
 
     /// Takes a given commit and appends its changes to the history tree
     fn append_commit(&mut self, commit: &ParsedCommit) {
+
+        // For each commit, see if we care to extract data,
+        // and possibly do so.
+        let data = if (self.filter)(commit) {
+                Some(Rc::new((self.visitor)(commit)))
+            }
+            else {
+                None
+            };
+
         for delta in &commit.deltas {
+
+            // Each delta needs its own node, but it can share the data.
+            let new_node = self.new_node(data.clone());
 
             // If we have no edges leading to the next node for this path,
             // skip to the next diff.
@@ -100,7 +114,6 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
 
             // In all cases where we care about the given path,
             // create a new node for it and link its pending_edges to it.
-            let new_node = self.new_node(commit);
             self.append_node(&delta.path, new_node.clone());
 
             match delta.change {
