@@ -24,7 +24,7 @@ fn main() {
     // let args: Vec<String> = env::args().collect();
     let (tx, rx) = sync_channel(0);
 
-    thread::spawn(|| parsing::get_history(tx, |_| true));
+    thread::spawn(|| parsing::get_history(tx));
 
     let paths = get_tracked_files();
 

@@ -51,8 +51,7 @@ fn start_history_process() -> Result<Child, io::Error> {
 ///
 /// The parsed commits are pushed to a `SyncSender`,
 /// and are assumed to be consumed by another thread.
-pub fn get_history<F>(sink: SyncSender<ParsedCommit>, filter: F)
-    where F: Fn(&ParsedCommit) -> bool {
+pub fn get_history(sink: SyncSender<ParsedCommit>) {
 
     enum ParseState { // Used for the state machine below
         Hash,
@@ -86,9 +85,7 @@ pub fn get_history<F>(sink: SyncSender<ParsedCommit>, filter: F)
             ParseState::Changes => {
                 // If we get the next hash, we're done with the previous commit.
                 if let Ok(id) = SHA1::parse(&line) {
-                    if filter(&current_commit) {
-                        commit_sink(current_commit, &sink);
-                    }
+                    commit_sink(current_commit, &sink);
                     current_commit = ParsedCommit::default();
 
                     // We just got the OID of the next guy,
@@ -108,9 +105,7 @@ pub fn get_history<F>(sink: SyncSender<ParsedCommit>, filter: F)
     }
 
     // Grab the last commit.
-    if filter(&current_commit) {
-        commit_sink(current_commit, &sink);
-    }
+    commit_sink(current_commit, &sink);
 }
 
 /// The function that eats a commit when the state machine is done parsing it.
