@@ -38,7 +38,8 @@ use parsing::ParsedCommit;
 
 
 /// All the fun state we need to hang onto while building up our history tree
-struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {
+struct HistoryState<'a, T, V, F>
+    where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
     /// The tree we'll return
     history: HistoryTree<T>,
 
@@ -54,11 +55,14 @@ struct HistoryState<'a, T, F: Fn(&ParsedCommit) -> T> {
 
     /// The user-provided callback that's issued for each diff,
     /// returning info the user cares about.
-    visitor: F,
+    visitor: V,
+
+    filter: F,
 }
 
-impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
-    fn new(set: &'a PathSet, vis: F) -> HistoryState<T, F> {
+impl<'a, T, V, F> HistoryState<'a, T, V, F>
+    where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
+    fn new(set: &'a PathSet, vis: V, fil: F) -> HistoryState<T, V, F> {
         let mut pending = HashMap::new();
 
         // Due to the check at the start of append_commit(), we must insert
@@ -72,13 +76,16 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
                       pending_edges: pending,
                       path_set: set,
                       visitor: vis,
+                      filter: fil
                     }
     }
 
     /// Uses the user's callback to generate a new node
     fn new_node(&self, c: &ParsedCommit) -> Link<HistoryNode<T>> {
-        Rc::new(RefCell::new(HistoryNode{data: (self.visitor)(c),
-                                         previous: None}))
+        let d = if (self.filter)(c) { Some((self.visitor)(c)) }
+            else { None };
+
+        Rc::new(RefCell::new(HistoryNode{data: d, previous: None}))
     }
 
     /// Takes a given commit and appends its changes to the history tree
@@ -152,10 +159,10 @@ impl<'a, T, F> HistoryState<'a, T, F> where F: Fn(&ParsedCommit) -> T {
 ///
 /// Changes are tracked *through* file copies and renames.
 /// See the module-level documentation for more info.
-pub fn gather_history<T, F>(paths: &PathSet, v: F,
-                            commit_source: Receiver<ParsedCommit>) -> HistoryTree<T>
-    where F: Fn(&ParsedCommit) -> T {
-    let mut state = HistoryState::new(paths, v);
+pub fn gather_history<T, V, F>(paths: &PathSet, v: V, f: F,
+                               commit_source: Receiver<ParsedCommit>) -> HistoryTree<T>
+    where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
+    let mut state = HistoryState::new(paths, v, f);
 
     // Start reading commits.
 

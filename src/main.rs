@@ -28,7 +28,7 @@ fn main() {
 
     let paths = get_tracked_files();
 
-    let history = gather_history(&paths, &get_id, rx);
+    let history = gather_history(&paths, &get_id, |_| true, rx);
 
     for (key, val) in history {
         println!("{}", key);
@@ -56,8 +56,6 @@ fn get_tracked_files() -> PathSet {
     ret
 }
 
-
-
 fn get_id(c: &ParsedCommit) -> String {
 
     str::from_utf8(&Command::new("git")
@@ -73,7 +71,9 @@ fn get_id(c: &ParsedCommit) -> String {
 fn print_history<T>(node: &Link<HistoryNode<T>>)
     where T: std::fmt::Display {
     let nb = node.borrow();
-    println!("\t{}", nb.data);
+    if let Some(ref data) = nb.data {
+        println!("\t{}", data);
+    }
     if let Some(ref prev) = nb.previous {
         print_history(prev)
     }

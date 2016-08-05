@@ -83,7 +83,11 @@ pub type Link<T> = Rc<RefCell<T>>;
 pub struct HistoryNode<T> {
     /// A callback is issued for each delta, allowing the user to store
     /// whatever info they want about the change.
-    pub data: T,
+    /// This is an `Option` for the sake of filtering---we can't omit the node
+    /// entirely (or the processing that generated it), as we could screw up
+    /// the history graph. Instead, we make the contents `None` for all nodes
+    /// from a filtered-out commit.
+    pub data: Option<T>,
 
     /// What's the previous change?
     pub previous: Option<Link<HistoryNode<T>>>,
