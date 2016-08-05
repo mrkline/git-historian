@@ -42,7 +42,10 @@ use types::{Change, HistoryNode, HistoryTree, Link, PathSet};
 use parsing::ParsedCommit;
 
 
-/// All the fun state we need to hang onto while building up our history tree
+/// All the fun state we need to hang onto while building up our history tree.
+/// Forgive the template param stew. All it's doing is allowing the user to
+/// use an arbitrary function `F` to filter commits, then use an arbitrary
+/// function `V` to gather arbitrary data `T` from each commit.
 struct HistoryState<'a, T, V, F>
     where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
     /// The tree we'll return
@@ -103,17 +106,17 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
 
         for delta in &commit.deltas {
 
-            // Each delta needs its own node, but it can share the data.
-            let new_node = self.new_node(data.clone());
-
             // If we have no edges leading to the next node for this path,
             // skip to the next diff.
             if !self.pending_edges.contains_key(&delta.path) {
                 continue;
             }
 
+            // Each delta needs its own node, but it can share the data.
+            let new_node = self.new_node(data.clone());
+
             // In all cases where we care about the given path,
-            // create a new node for it and link its pending_edges to it.
+            // insert the new node and link its pending_edges to it.
             self.append_node(&delta.path, new_node.clone());
 
             match delta.change {
