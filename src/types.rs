@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -41,10 +42,31 @@ pub struct SHA1 {
     bytes: [u8; 20]
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum SHA1ParseError {
+    IncorrectLength,
+    InvalidHexadecimal
+}
+
+impl Error for SHA1ParseError {
+    fn description(&self) -> &str {
+        match *self {
+            SHA1ParseError::IncorrectLength => "String is not 40 characters long",
+            SHA1ParseError::InvalidHexadecimal => "String is not valid hexadecimal",
+        }
+    }
+}
+
+impl Display for SHA1ParseError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
 impl SHA1 {
     /// Parses a SHA1 from a 40 character hex string
-    pub fn parse(s: &str) -> Result<SHA1, &str> {
-        if s.len() != 40 { return Err("String is incorrect length") }
+    pub fn parse(s: &str) -> Result<SHA1, SHA1ParseError> {
+        if s.len() != 40 { return Err(SHA1ParseError::IncorrectLength) }
 
         let mut ret = SHA1::default();
 
@@ -52,7 +74,7 @@ impl SHA1 {
             let char_index = i * 2;
             ret.bytes[i] = match u8::from_str_radix(&s[char_index .. char_index + 2], 16) {
                     Ok(b) => b,
-                    _ => { return Err("Couldn't parse string"); },
+                    _ => { return Err(SHA1ParseError::InvalidHexadecimal); },
                 };
         }
 
