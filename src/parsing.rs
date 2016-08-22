@@ -1,4 +1,5 @@
-//! Parses `git log --name-status` to find file changes through Git history
+//! Parses `git log --name-status` to generate a stream of file changes
+//! in Git history
 //!
 //! Originally the [Rust bindings](https://crates.io/crates/git2) for
 //! [libgit2](https://libgit2.github.com/) was used,

@@ -1,8 +1,8 @@
-//! Builds a tree of Git history for a given set of paths, issuing a callback
-//! to gather information at each point in a file's history
+//! Builds a tree of Git history based on the stream of changes parsed from Git
 //!
 //! The basic algorithm is as follows: given a set of paths we care about and a
-//! series of commits, do the following for each commit:
+//! series of commits (provided by the [parsing](../parsing/index.html) module),
+//! do the following for each commit:
 //!
 //! 1. Call the user-provided filter to see if the user cares about this commit.
 //!    If they do, call the user-provided callback extract desired information.

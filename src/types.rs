@@ -36,7 +36,7 @@ pub struct FileDelta {
     pub from: String,
 }
 
-/// A SHA1 hash, used for identifying everything in Git.
+/// A 20-byte SHA1 hash, used for identifying objects in Git.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SHA1 {
     bytes: [u8; 20]
