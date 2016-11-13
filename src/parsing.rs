@@ -1,9 +1,11 @@
-//! Parses `git log --name-status` to find file changes through Git history
+//! Parses `git log --name-status` to generate a stream of file changes
+//! in Git history
 //!
 //! Originally the [Rust bindings](https://crates.io/crates/git2) for
 //! [libgit2](https://libgit2.github.com/) was used,
-//! but there is currently no clean way for libgit to generate diffs for merges
-//! (i.e. only the changes resulting from conflict resolution) as Git does.
+//! but there is currently no clean or efficient way for libgit to generate
+//! diffs for merges (i.e. only the changes resulting from conflict resolution)
+//! as Git does.
 
 use std::io::{self, BufReader, BufRead};
 use std::process::{Child, Command, Stdio};
@@ -14,7 +16,7 @@ use time::Timespec;
 use types::*;
 
 /// Info about a commit pulled from `git log` (or at least the bits we care about)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsedCommit {
     pub id: SHA1,
     /// The Unix timestamp (in seconds) of the commit
@@ -88,7 +90,7 @@ pub fn get_history(sink: SyncSender<ParsedCommit>) {
                     commit_sink(current_commit, &sink);
                     current_commit = ParsedCommit::default();
 
-                    // We just got the OID of the next guy,
+                    // We just got the OID of the next commit,
                     // so proceed to reading the timestamp
                     current_commit.id = id;
                     next_state = ParseState::Timestamp;
@@ -108,7 +110,7 @@ pub fn get_history(sink: SyncSender<ParsedCommit>) {
     commit_sink(current_commit, &sink);
 }
 
-/// The function that eats a commit when the state machine is done parsing it.
+/// Sends a commit when the state machine is done parsing it.
 #[inline]
 fn commit_sink(c: ParsedCommit, sink: &SyncSender<ParsedCommit>) {
     sink.send(c).expect("The other end stopped listening for commits.");
@@ -149,7 +151,7 @@ fn parse_change_code(c: &str) -> Change {
         'D' => Change::Deleted,
         'M' |
         'T' => Change::Modified, // Let's consider a type change a modification.
-        // Renames and copies are suffixed with a percent changed, e.g. R87
+        // Renames and copies are suffixed with a percent changed, e.g. "R87"
         'R' => Change::Renamed{ percent_changed: c[1..].parse().unwrap() },
         'C' => Change::Copied{ percent_changed: c[1..].parse().unwrap() },
         _ => panic!("Unknown delta code: {}", c)

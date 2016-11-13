@@ -1,11 +1,11 @@
-//! Builds a tree of Git history for a given set of paths, issuing a callback
-//! to gather information at each point in a file's history
+//! Builds a tree of Git history based on the stream of changes parsed from Git
 //!
 //! The basic algorithm is as follows: given a set of paths we care about and a
-//! series of commits, do the following for each commit:
+//! series of commits (provided by the [parsing](../parsing/index.html) module),
+//! do the following for each commit:
 //!
 //! 1. Call the user-provided filter to see if the user cares about this commit.
-//!    If they do, call the user-provided callback extract desired information.
+//!    If they do, call the user-provided callback to extract information.
 //!    The callback can use the data provided by `ParsedCommit`, or it
 //!    can gather its own info using the commit's SHA1 ID and git commands.
 //!    (The latter is, of course, much slower.)
@@ -70,6 +70,7 @@ struct HistoryState<'a, T, V, F>
 
 impl<'a, T, V, F> HistoryState<'a, T, V, F>
     where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
+
     fn new(set: &'a PathSet, vis: V, fil: F) -> HistoryState<T, V, F> {
         let mut pending = HashMap::new();
 

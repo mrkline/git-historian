@@ -1,4 +1,4 @@
-///! Types common to the entire library.
+//! Types common to the entire crate.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -13,7 +13,7 @@ pub type PathSet = HashSet<String>;
 ///
 /// Copies and renames have additional info:
 /// how much of the file remained the same.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Change {
     Added,
     Deleted,
@@ -23,7 +23,7 @@ pub enum Change {
 }
 
 /// A change made to a given file in a commit
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileDelta {
     /// The change type
     pub change: Change,
@@ -36,7 +36,7 @@ pub struct FileDelta {
     pub from: String,
 }
 
-/// A SHA1 hash, used for identifying everything in Git.
+/// A 20-byte SHA1 hash, used for identifying objects in Git.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SHA1 {
     bytes: [u8; 20]

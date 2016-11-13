@@ -1,11 +1,10 @@
+//! A demo app that gets the --oneline of every commit for a given file.
+//! Since this does so once per diff per commit, it is hilariously inefficient,
+//! but very easy to validate by comparing a given file's history to
+//! `git log --follow --oneline <file>`.
+
 extern crate time;
 
-// A demo app that gets the --oneline of every commit for a given file.
-// Since this does so once per diff per commit, it is hilariously inefficient,
-// but very easy to validate by comparing a given file's history to
-// `git log --follow --oneline <file>`.
-
-// use std::env;
 use std::io::{BufReader, BufRead};
 use std::process::{Command, Stdio};
 use std::str;
@@ -37,7 +36,7 @@ fn main() {
 }
 
 /// *Warning:* This currently assumes the working directory is the top-level Git
-/// directory. This should (and will) be fixed ASAP.
+/// directory. This should be fixed at some point...
 fn get_tracked_files() -> PathSet {
     let mut ret = PathSet::new();
 

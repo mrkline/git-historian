@@ -1,8 +1,16 @@
 [package]
 name = "git-historian"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Matt Kline <matthew.kline@flukenetworks.com>"]
 license = "GPL-2.0"
+readme = "README.md"
+repository = "https://github.com/mrkline/git-historian"
+documentation = "https://docs.rs/git-historian"
+description = """
+Git Historian allows you to collect arbitrary data about a file at each point
+in its Git history.
+Think of it as git log --follow for every file in a repo, all at once.
+"""
 
 [lib]
 path = "src/lib.rs"
