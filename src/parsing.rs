@@ -37,16 +37,14 @@ impl Default for ParsedCommit {
 
 /// Starts the `git log` process with the desired config
 fn start_history_process() -> Result<Child, io::Error> {
-    let child = try!(Command::new("git")
+    Command::new("git")
         .arg("log")
         .arg("--name-status")
         .arg("-M")
         .arg("-C")
         .arg("--pretty=format:%H%n%at") // Commit hash, newline, unix time
         .stdout(Stdio::piped())
-        .spawn());
-
-    Ok(child)
+        .spawn()
 }
 
 /// Parses the Git history and emits a series of `ParsedCommits`
