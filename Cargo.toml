@@ -1,6 +1,6 @@
 [package]
 name = "git-historian"
-version = "0.3.4"
+version = "0.4.0"
 authors = ["Matt Kline <matt@bitbashing.io>"]
 license = "GPL-2.0"
 readme = "README.md"
