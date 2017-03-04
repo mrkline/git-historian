@@ -177,7 +177,7 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
 /// Changes are tracked *through* file copies and renames.
 /// See the module-level documentation for more info.
 pub fn gather_history<T, V, F>(paths: &PathSet, v: V, f: F,
-                               commit_source: Receiver<ParsedCommit>) -> HistoryTree<T>
+                               commit_source: &Receiver<ParsedCommit>) -> HistoryTree<T>
     where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
     let mut state = HistoryState::new(paths, v, f);
 

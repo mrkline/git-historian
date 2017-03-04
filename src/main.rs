@@ -23,11 +23,11 @@ fn main() {
     // let args: Vec<String> = env::args().collect();
     let (tx, rx) = sync_channel(0);
 
-    thread::spawn(|| parsing::get_history(tx));
+    thread::spawn(move || parsing::get_history(&tx));
 
     let paths = get_tracked_files();
 
-    let history = gather_history(&paths, &get_id, |_| true, rx);
+    let history = gather_history(&paths, &get_id, |_| true, &rx);
 
     for (key, val) in history {
         println!("{}", key);
