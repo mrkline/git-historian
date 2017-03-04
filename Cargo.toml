@@ -12,6 +12,7 @@ in its Git history.
 Think of it as "git log --follow" for every file in a repo, all at once.
 """
 keywords = ["git"]
+categories = ["development-tools"]
 
 [lib]
 path = "src/lib.rs"
