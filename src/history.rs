@@ -68,6 +68,10 @@ struct HistoryState<'a, T, V, F>
     filter: F,
 }
 
+fn new_node<T>(d: Option<Rc<T>>) -> Link<HistoryNode<T>> {
+    Rc::new(RefCell::new(HistoryNode{data: d, previous: None}))
+}
+
 impl<'a, T, V, F> HistoryState<'a, T, V, F>
     where V: Fn(&ParsedCommit) -> T, F: Fn(&ParsedCommit) -> bool {
 
@@ -87,10 +91,6 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
                       visitor: vis,
                       filter: fil
                     }
-    }
-
-    fn new_node(&self, d: Option<Rc<T>>) -> Link<HistoryNode<T>> {
-        Rc::new(RefCell::new(HistoryNode{data: d, previous: None}))
     }
 
     /// Takes a given commit and appends its changes to the history tree
@@ -114,7 +114,7 @@ impl<'a, T, V, F> HistoryState<'a, T, V, F>
             }
 
             // Each delta needs its own node, but it can share the data.
-            let new_node = self.new_node(data.clone());
+            let new_node = new_node(data.clone());
 
             // In all cases where we care about the given path,
             // insert the new node and link its pending_edges to it.
